@@ -1,8 +1,9 @@
-#!/usr/bin/python
+#! /usr/bin/python
 
 import pika
 import pandas as pd
 import json
+import subprocess
 
 credentials = pika.PlainCredentials(username='indienkovaa', password='123456')
 
@@ -14,9 +15,16 @@ channel = connection.channel()
 channel.queue_declare(queue='demo-queue')
 
 file_name = 'demo.parquet'
-path = '/home/parquet/'
+path = '/home/hadoopuser/hdfs/namenode/parquet/'
 global count
 count = 0
+
+
+def run_cmd(args_list):
+    proc = subprocess.Popen(args_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    s_output, s_err = proc.communicate()
+    s_return = proc.returncode
+    return s_return, s_output, s_err
 
 
 def callback(ch, method, properties, body):
@@ -24,6 +32,8 @@ def callback(ch, method, properties, body):
     json_data = json.loads(body.decode("utf-8"))
     df = pd.DataFrame(json_data, index=[0])
     df.to_parquet(path + file_name + str(count))
+    (ret, out, err) = run_cmd(['hdfs', 'dfs', '-put', '-f', path + file_name + str(count), '/user/hadoopuser/parquet'])
+    print('done:' + str(count))
     count += 1
 
 
